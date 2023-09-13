@@ -14,6 +14,7 @@ from code import compile_command
 from enum import Enum
 from typing import Any, Literal, Optional, TypeVar
 from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlparse, urlunparse
+from decimal import Decimal
 
 import pytz
 from click import secho
@@ -1060,7 +1061,6 @@ def cast(fieldtype, value=None):
 
 	return value
 
-
 @typing.overload
 def flt(s: NumericType | str, precision: Literal[0]) -> int:
 	...
@@ -1176,10 +1176,16 @@ def sbool(x: str) -> bool | Any:
 	except Exception:
 		return x
 
+def get_precision(s: NumericType | str) -> int:
+	decimal_number = Decimal(str(s))
+	return -decimal_number.as_tuple().exponent
 
 def rounded(num, precision=0, rounding_method=None):
 	"""Round according to method set in system setting, defaults to banker's rounding"""
 	precision = cint(precision)
+
+	if get_precision(num) <= precision:
+		return num
 
 	rounding_method = (
 		rounding_method or frappe.get_system_settings("rounding_method") or "Banker's Rounding (legacy)"
