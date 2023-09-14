@@ -1101,7 +1101,7 @@ def browse(context, site, user=None):
 		else:
 			click.echo("Please enable developer mode to login as a user")
 
-	url = f"{frappe.utils.get_url()}{sid}"
+	url = f"{frappe.utils.get_site_url(site)}{sid}"
 
 	if user == "Administrator":
 		click.echo(f"Login URL: {url}")
@@ -1169,7 +1169,7 @@ def start_ngrok(context, bind_tls, use_default_authtoken):
 	port = frappe.conf.http_port or frappe.conf.webserver_port
 	tunnel = ngrok.connect(addr=str(port), host_header=site, bind_tls=bind_tls)
 	print(f"Public URL: {tunnel.public_url}")
-	print("Inspect logs at http://localhost:4040")
+	print("Inspect logs at http://127.0.0.1:4040")
 
 	ngrok_process = ngrok.get_ngrok_process()
 	try:
