@@ -742,6 +742,7 @@ class FormTimeline extends BaseTimeline {
 				})
 				.then(() => {
 					frappe.utils.play_sound("delete");
+					$('.timeline-item[data-name="' + comment_name + '"]').remove();
 				});
 		});
 	}
