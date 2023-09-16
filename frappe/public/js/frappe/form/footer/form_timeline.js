@@ -667,6 +667,24 @@ class FormTimeline extends BaseTimeline {
 		let actions_wrapper = comment_wrapper.find(".custom-actions");
 		actions_wrapper.append(edit_button);
 		actions_wrapper.append(dismiss_button);
+
+		let reply_button = $(
+			`<a class="btn btn-link action-btn btn-reply">${__("Reply")}</a>`
+		).click(() => {
+			const comment_input_wrapper = $(".comment-input-wrapper");
+			comment_input_wrapper.find(".reply-for").remove();
+			const comment_id = comment_wrapper.closest(".timeline-item")?.attr("data-name");
+
+			let reply_for = $(`
+				<div class="timeline-item reply-for" data-comment="${comment_id}">
+					${comment_wrapper.closest(".timeline-message-box").html()}
+				</div>
+			`);
+			reply_for.find(".actions").remove();
+			$(".comment-input-header").after(reply_for);
+			cur_frm.comment_box.quill.focus();
+		});
+		actions_wrapper.append(reply_button);
 	}
 
 	make_editable(container) {

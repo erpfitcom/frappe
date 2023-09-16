@@ -29,6 +29,7 @@ class BaseTimeline {
 
 	refresh() {
 		this.render_timeline_items();
+		this.render_timeline_items_children();
 	}
 
 	add_action_button(label, action, icon = null, btn_class = null) {
@@ -60,6 +61,53 @@ class BaseTimeline {
 				(item1, item2) => new Date(item2.creation) - new Date(item1.creation)
 			);
 			this.timeline_items.forEach(this.add_timeline_item.bind(this));
+		}
+	}
+
+	async render_timeline_items_children() {
+		let comment_names = this.timeline_items
+			.filter((i) => i.doctype === "Comment")
+			.map((i) => i.name);
+		if (!comment_names.length) return;
+		await this._render_children(comment_names, 1, 5);
+	}
+
+	async _render_children(comment_names, level = 1, max_level = 5) {
+		if (level > max_level) return;
+		if (!comment_names || !comment_names.length) return;
+		const children = await frappe.db.get_list("Comment", {
+			fields: ["*"],
+			filters: [
+				["reference_doctype", "=", "Comment"],
+				["reference_name", "in", comment_names],
+			],
+		});
+		children.forEach((item) => {
+			const is_comment = item.comment_type == "Comment";
+			item.is_card = is_comment;
+			item.timeline_badge = !is_comment
+				? ""
+				: `<div class="timeline-badge" title="SmallMessage">
+				<svg class="icon icon-md" style="">
+					<use class="" href="#icon-small-message"></use>
+				</svg>
+			</div>`;
+			item.content = frappe.dom.remove_script_and_style(item.content);
+			const comment_content = $(
+				frappe.render_template("timeline_message_box", { doc: item })
+			);
+			cur_frm.timeline.setup_comment_actions(comment_content, item);
+			item.content = comment_content;
+			let timeline_content = this.get_timeline_item(item);
+			timeline_content.find(".timeline-content").css("margin-left", level * 60 + "px");
+			if (level === max_level) {
+				timeline_content.find(".btn-reply").hide();
+			}
+			$('div[data-name="' + item.reference_name + '"]').after(timeline_content);
+		});
+		const child_comment_names = children.map((i) => i.name);
+		if (child_comment_names.length > 0) {
+			await this._render_children(child_comment_names, level + 1, max_level);
 		}
 	}
 
