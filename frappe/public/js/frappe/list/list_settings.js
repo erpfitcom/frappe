@@ -104,8 +104,8 @@ export default class ListSettings {
 			if (idx == parseInt(total_fields)) {
 				break;
 			}
-			let is_sortable = idx == 0 ? `` : `sortable`;
-			let show_sortable_handle = idx == 0 ? `hide` : ``;
+			let is_sortable = `sortable`;
+			let show_sortable_handle = ``;
 			let can_remove = idx == 0 || is_status_field(me.fields[idx]) ? `hide` : ``;
 
 			fields += `
