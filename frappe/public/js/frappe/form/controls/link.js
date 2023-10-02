@@ -362,6 +362,32 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			}
 		});
 
+		// @fix awesomplete does not work well with safari touch devices
+		let isSafari = /Safari/.test(navigator.userAgent);
+		if (isSafari) {
+			let $wrap = this.$input.closest(".awesomplete");
+			$wrap.on("mousemove touchmove", 'ul[id^="awesomplete_list_"] li', function () {
+				let isMoving = $wrap.data("is-moving");
+				if (!isMoving) {
+					$wrap.data("is-moving", 1);
+				}
+			});
+
+			$wrap.on("click touchend", 'ul[id^="awesomplete_list_"] li', function () {
+				var isMoving = $wrap.data("is-moving");
+				$wrap.data("is-moving", 0);
+				if (isMoving) {
+					return;
+				}
+				var value = $(this).data("item.autocomplete");
+				if (value) {
+					var idx = $(this).index();
+					me.awesomplete.goto(idx);
+					me.awesomplete.select();
+				}
+			});
+		}
+
 		this.$input.on("awesomplete-select", function (e) {
 			var o = e.originalEvent;
 			var item = me.awesomplete.get_item(o.text.value);
