@@ -216,18 +216,23 @@ def clean_params(data):
 
 def parse_json(data):
 	if isinstance(data.get("filters"), str):
-		data["filters"] = json.loads(data["filters"])
+		data["filters"] = safe_json_loads(data["filters"])
 	if isinstance(data.get("or_filters"), str):
-		data["or_filters"] = json.loads(data["or_filters"])
+		data["or_filters"] = safe_json_loads(data["or_filters"])
 	if isinstance(data.get("fields"), str):
-		data["fields"] = ["*"] if data["fields"] == "*" else json.loads(data["fields"])
+		data["fields"] = ["*"] if data["fields"] == "*" else safe_json_loads(data["fields"])
 	if isinstance(data.get("docstatus"), str):
-		data["docstatus"] = json.loads(data["docstatus"])
+		data["docstatus"] = safe_json_loads(data["docstatus"])
 	if isinstance(data.get("save_user_settings"), str):
-		data["save_user_settings"] = json.loads(data["save_user_settings"])
+		data["save_user_settings"] = safe_json_loads(data["save_user_settings"])
 	else:
 		data["save_user_settings"] = True
 
+def safe_json_loads(data):
+	try:
+		return json.loads(data)
+	except ValueError:
+		return data
 
 def get_parenttype_and_fieldname(field, data):
 	if "." in field:
