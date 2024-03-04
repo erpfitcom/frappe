@@ -161,15 +161,39 @@ frappe.ui.Page = class Page {
 		frappe.ui.keys
 			.get_shortcut_group(this.page_actions[0])
 			.add(action_btn, action_btn.find(".actions-btn-group-label"));
+
+		// https://axesslab.com/skip-links
+		this.skip_link_to_main = $("<button>")
+			.addClass("sr-only sr-only-focusable btn btn-primary-light my-2")
+			.text(__("Navigate to main content"))
+			.attr({ tabindex: 0, role: "link" })
+			.on("click", (e) => {
+				e.preventDefault();
+				const main = this.main.get(0);
+				main.setAttribute("tabindex", -1);
+				main.focus();
+				main.addEventListener(
+					"blur",
+					() => {
+						main.removeAttribute("tabindex");
+					},
+					{ once: true }
+				);
+			})
+			.appendTo(this.sidebar);
 	}
 
 	setup_sidebar_toggle() {
 		let sidebar_toggle = $(".page-head").find(".sidebar-toggle-btn");
 		let sidebar_wrapper = this.wrapper.find(".layout-side-section");
 		if (this.disable_sidebar_toggle || !sidebar_wrapper.length) {
-			sidebar_toggle.remove();
+			sidebar_toggle.last().remove();
 		} else {
-			sidebar_toggle.attr("title", __("Toggle Sidebar")).tooltip({
+			if (!frappe.is_mobile()) {
+				sidebar_toggle.attr("title", __("Toggle Sidebar"));
+			}
+			sidebar_toggle.attr("aria-label", __("Toggle Sidebar"));
+			sidebar_toggle.tooltip({
 				delay: { show: 600, hide: 100 },
 				trigger: "hover",
 			});
@@ -733,7 +757,7 @@ frappe.ui.Page = class Page {
 		return this.$title_area;
 	}
 
-	set_title(title, icon = null, strip = true, tab_title = "") {
+	set_title(title, icon = null, strip = true, tab_title = "", tooltip_label = "") {
 		if (!title) title = "";
 		if (strip) {
 			title = strip_html(title);
@@ -745,7 +769,11 @@ frappe.ui.Page = class Page {
 		}
 		let title_wrapper = this.$title_area.find(".title-text");
 		title_wrapper.html(title);
-		title_wrapper.attr("title", this.title);
+		title_wrapper.attr("title", tooltip_label || this.title);
+
+		if (tooltip_label) {
+			title_wrapper.tooltip({ delay: { show: 600, hide: 100 }, trigger: "hover" });
+		}
 	}
 
 	set_title_sub(txt) {
@@ -863,7 +891,7 @@ frappe.ui.Page = class Page {
 		f.refresh();
 		$(f.wrapper)
 			.addClass("col-md-2")
-			.attr("title", __(df.label))
+			.attr("title", __(df.label, null, df.parent))
 			.tooltip({
 				delay: { show: 600, hide: 100 },
 				trigger: "hover",
@@ -877,7 +905,7 @@ frappe.ui.Page = class Page {
 		// hidden fields dont have $input
 		if (!f.$input) f.make_input();
 
-		f.$input.attr("placeholder", __(df.label));
+		f.$input.attr("placeholder", __(df.label, null, df.parent));
 
 		if (df.fieldtype === "Check") {
 			$(f.wrapper).find(":first-child").removeClass("col-md-offset-4 col-md-8");

@@ -19,10 +19,12 @@
   "reqd",
   "is_virtual",
   "search_index",
+  "not_nullable",
   "column_break_18",
   "options",
   "sort_options",
   "show_dashboard",
+  "link_filters",
   "defaults_section",
   "default",
   "column_break_6",
@@ -155,6 +157,7 @@
   },
   {
    "default": "0",
+   "depends_on": "eval:!doc.is_virtual",
    "fieldname": "in_list_view",
    "fieldtype": "Check",
    "label": "In List View",
@@ -560,13 +563,25 @@
    "fieldname": "sort_options",
    "fieldtype": "Check",
    "label": "Sort Options"
+  },
+  {
+   "fieldname": "link_filters",
+   "fieldtype": "JSON",
+   "label": "Link Filters"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:!in_list([\"Check\", \"Currency\", \"Float\", \"Int\", \"Percent\", \"Rating\", \"Select\", \"Table\", \"Table MultiSelect\"], doc.fieldtype)",
+   "fieldname": "not_nullable",
+   "fieldtype": "Check",
+   "label": "Not Nullable"
   }
  ],
  "idx": 1,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-10-25 06:53:45.194081",
+ "modified": "2024-02-01 15:55:44.007917",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "DocField",

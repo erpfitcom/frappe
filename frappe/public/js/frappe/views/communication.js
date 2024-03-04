@@ -1,8 +1,6 @@
 // Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
-import localforage from "localforage";
-
 frappe.last_edited_communication = {};
 const separator_element = "<div>---</div>";
 
@@ -47,6 +45,7 @@ frappe.views.CommunicationComposer = class {
 	}
 
 	get_fields() {
+		let me = this;
 		const fields = [
 			{
 				label: __("To"),
@@ -76,6 +75,11 @@ frappe.views.CommunicationComposer = class {
 				label: __("BCC"),
 				fieldtype: "MultiSelect",
 				fieldname: "bcc",
+			},
+			{
+				label: __("Schedule Send At"),
+				fieldtype: "Datetime",
+				fieldname: "send_after",
 			},
 			{
 				fieldtype: "Section Break",
@@ -139,6 +143,17 @@ frappe.views.CommunicationComposer = class {
 				label: __("Select Print Format"),
 				fieldtype: "Select",
 				fieldname: "select_print_format",
+				onchange: function () {
+					me.guess_language();
+				},
+			},
+			{
+				label: __("Print Language"),
+				fieldtype: "Link",
+				options: "Language",
+				fieldname: "print_language",
+				default: frappe.boot.lang,
+				depends_on: "attach_document_print",
 			},
 			{ fieldtype: "Column Break" },
 			{
@@ -151,7 +166,7 @@ frappe.views.CommunicationComposer = class {
 		// add from if user has access to multiple email accounts
 		const email_accounts = frappe.boot.email_accounts.filter((account) => {
 			return (
-				!in_list(["All Accounts", "Sent", "Spam", "Trash"], account.email_account) &&
+				!["All Accounts", "Sent", "Spam", "Trash"].includes(account.email_account) &&
 				account.enable_outgoing
 			);
 		});
@@ -167,14 +182,32 @@ frappe.views.CommunicationComposer = class {
 				reqd: 1,
 				fieldname: "sender",
 				options: this.user_email_accounts,
+				onchange: () => {
+					this.setup_recipients_if_reply();
+				},
 			});
 			//Preselect email senders if there is only one
 			if (this.user_email_accounts.length == 1) {
 				this["sender"] = this.user_email_accounts;
+			} else if (this.user_email_accounts.includes(frappe.session.user_email)) {
+				this["sender"] = frappe.session.user_email;
 			}
 		}
 
 		return fields;
+	}
+
+	guess_language() {
+		// when attach print for print format changes try to guess language
+		// if print format has language then set that else boot lang.
+		let lang = frappe.boot.lang;
+
+		let print_format = this.dialog.get_value("select_print_format");
+
+		if (print_format != "Standard") {
+			lang = frappe.get_doc("Print Format", print_format)?.default_print_language || lang;
+		}
+		this.dialog.set_value("print_language", lang);
 	}
 
 	toggle_more_options(show_options) {
@@ -220,11 +253,52 @@ frappe.views.CommunicationComposer = class {
 		});
 	}
 
+	setup_recipients_if_reply() {
+		if (!this.is_a_reply || !this.last_email) return;
+		let sender = this.dialog.get_value("sender");
+		if (!sender) return;
+		const fields = {
+			recipients: this.dialog.fields_dict.recipients,
+			cc: this.dialog.fields_dict.cc,
+			bcc: this.dialog.fields_dict.bcc,
+		};
+		// If same user replies to their own email, set recipients to last email recipients
+		if (this.last_email.sender == sender) {
+			fields.recipients.set_value(this.last_email.recipients);
+			if (this.reply_all) {
+				fields.cc.set_value(this.last_email.cc);
+				fields.bcc.set_value(this.last_email.bcc);
+			}
+		} else {
+			fields.recipients.set_value(this.last_email.sender);
+			if (this.reply_all) {
+				// if sending reply add ( last email's recipients - sender's email_id ) to cc.
+				const recipients = this.last_email.recipients.split(",").map((r) => r.trim());
+				if (!this.cc) {
+					this.cc = "";
+				}
+				const cc_array = this.cc.split(",").map((r) => r.trim());
+				if (this.cc && !this.cc.endsWith(", ")) {
+					this.cc += ", ";
+				}
+				this.cc += recipients
+					.filter((r) => !cc_array.includes(r) && r != sender)
+					.join(", ");
+				this.cc = this.cc.replace(sender + ", ", "");
+				fields.cc.set_value(this.cc);
+			}
+		}
+	}
+
 	setup_subject_and_recipients() {
 		this.subject = this.subject || "";
 
 		if (!this.forward && !this.recipients && this.last_email) {
 			this.recipients = this.last_email.sender;
+			// If same user replies to their own email, set recipients to last email recipients
+			if (this.last_email.sender == this.sender) {
+				this.recipients = this.last_email.recipients;
+			}
 			this.cc = this.last_email.cc;
 			this.bcc = this.last_email.bcc;
 		}
@@ -445,6 +519,7 @@ frappe.views.CommunicationComposer = class {
 		} else {
 			$(fields.attach_document_print.wrapper).toggle(false);
 		}
+		this.guess_language();
 	}
 
 	setup_attach() {
@@ -522,18 +597,27 @@ frappe.views.CommunicationComposer = class {
 
 	get_attachment_row(attachment, checked) {
 		return $(`<p class="checkbox flex">
-			<label class="ellipsis" title="${attachment.file_name}">
+			<label title="${attachment.file_name}" style="max-width: 100%">
 				<input
 					type="checkbox"
 					data-file-name="${attachment.name}"
 					${checked ? "checked" : ""}>
 				</input>
-				<span class="ellipsis">${attachment.file_name}</span>
+				<span
+					class="ellipsis"
+					style="max-width: calc(100% - var(--checkbox-size) - var(--checkbox-right-margin) - var(--padding-xs) - 16px)"
+				>
+					${attachment.file_name}
+				</span>
+				<a
+					href="${attachment.file_url}"
+					target="_blank"
+					class="btn-link"
+					style="padding-left: var(--padding-xs)"
+				>
+					${frappe.utils.icon("link-url", "sm")}
+				</a>
 			</label>
-			&nbsp;
-			<a href="${attachment.file_url}" target="_blank" class="btn-linkF">
-				${frappe.utils.icon("link-url")}
-			</a>
 		</p>`);
 	}
 
@@ -676,6 +760,8 @@ frappe.views.CommunicationComposer = class {
 				attachments: selected_attachments,
 				read_receipt: form_values.send_read_receipt,
 				print_letterhead: me.is_print_letterhead_checked(),
+				send_after: form_values.send_after ? form_values.send_after : null,
+				print_language: form_values.print_language,
 			},
 			btn,
 			callback(r) {

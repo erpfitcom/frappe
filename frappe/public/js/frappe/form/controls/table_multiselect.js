@@ -110,14 +110,7 @@ frappe.ui.form.ControlTableMultiSelect = class ControlTableMultiSelect extends (
 			return all_rows_except_last;
 		}
 
-		const validate_promise = this.validate_link_and_fetch(
-			this.df,
-			this.get_options(),
-			this.docname,
-			link_value
-		);
-
-		return validate_promise.then((validated_value) => {
+		return this.validate_link_and_fetch(link_value).then((validated_value) => {
 			if (validated_value === link_value) {
 				return rows;
 			} else {
@@ -166,7 +159,7 @@ frappe.ui.form.ControlTableMultiSelect = class ControlTableMultiSelect extends (
 		let me = this;
 
 		awesomplete.filter = function (item) {
-			if (in_list(me._rows_list, item.value)) {
+			if (me._rows_list.includes(item.value)) {
 				return false;
 			}
 

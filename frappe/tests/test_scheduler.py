@@ -40,7 +40,7 @@ class TestScheduler(TestCase):
 	def test_enqueue_jobs(self):
 		frappe.db.sql("update `tabScheduled Job Type` set last_execution = '2010-01-01 00:00:00'")
 
-		enqueued_jobs = enqueue_events(site=frappe.local.site)
+		enqueued_jobs = enqueue_events()
 
 		self.assertIn("frappe.desk.notifications.clear_notifications", enqueued_jobs)
 		self.assertIn("frappe.utils.change_log.check_for_update", enqueued_jobs)
@@ -93,17 +93,13 @@ class TestScheduler(TestCase):
 		)
 
 
-def get_test_job(
-	method="frappe.tests.test_scheduler.test_timeout_10", frequency="All"
-) -> ScheduledJobType:
+def get_test_job(method="frappe.tests.test_scheduler.test_timeout_10", frequency="All") -> ScheduledJobType:
 	if not frappe.db.exists("Scheduled Job Type", dict(method=method)):
 		job = frappe.get_doc(
-			dict(
-				doctype="Scheduled Job Type",
-				method=method,
-				last_execution="2010-01-01 00:00:00",
-				frequency=frequency,
-			)
+			doctype="Scheduled Job Type",
+			method=method,
+			last_execution="2010-01-01 00:00:00",
+			frequency=frequency,
 		).insert()
 	else:
 		job = frappe.get_doc("Scheduled Job Type", dict(method=method))

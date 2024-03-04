@@ -1,4 +1,3 @@
-import DataTable from "frappe-datatable";
 import { get_columns_for_picker } from "./data_exporter";
 
 frappe.provide("frappe.data_import");
@@ -34,7 +33,7 @@ frappe.data_import.ImportPreview = class ImportPreview {
 					<div class="col-sm-12">
 						<div class="table-actions margin-bottom">
 						</div>
-						<div class="table-preview border"></div>
+						<div class="table-preview"></div>
 						<div class="table-message"></div>
 					</div>
 				</div>
@@ -130,7 +129,7 @@ frappe.data_import.ImportPreview = class ImportPreview {
 			this.datatable.destroy();
 		}
 
-		this.datatable = new DataTable(this.$table_preview.get(0), {
+		this.datatable = new frappe.DataTable(this.$table_preview.get(0), {
 			data: this.data,
 			columns: this.columns,
 			layout: this.columns.length < 10 ? "fluid" : "fixed",
@@ -334,11 +333,11 @@ function get_fields_as_options(doctype, column_map) {
 	return [].concat(
 		...keys.map((key) => {
 			return column_map[key].map((df) => {
-				let label = __(df.label);
+				let label = __(df.label, null, df.parent);
 				let value = df.fieldname;
 				if (doctype !== key) {
 					let table_field = frappe.meta.get_docfield(doctype, key);
-					label = `${__(df.label)} (${__(table_field.label)})`;
+					label = `${__(df.label, null, df.parent)} (${__(table_field.label)})`;
 					value = `${table_field.fieldname}.${df.fieldname}`;
 				}
 				return {
