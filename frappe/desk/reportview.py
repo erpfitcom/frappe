@@ -214,20 +214,25 @@ def clean_params(data):
 
 def parse_json(data):
 	if (filters := data.get("filters")) and isinstance(filters, str):
-		data["filters"] = json.loads(filters)
+		data["filters"] = safe_json_loads(filters)
 	if (applied_filters := data.get("applied_filters")) and isinstance(applied_filters, str):
-		data["applied_filters"] = json.loads(applied_filters)
+		data["applied_filters"] = safe_json_loads(applied_filters)
 	if (or_filters := data.get("or_filters")) and isinstance(or_filters, str):
-		data["or_filters"] = json.loads(or_filters)
+		data["or_filters"] = safe_json_loads(or_filters)
 	if (fields := data.get("fields")) and isinstance(fields, str):
-		data["fields"] = ["*"] if fields == "*" else json.loads(fields)
+		data["fields"] = ["*"] if fields == "*" else safe_json_loads(fields)
 	if isinstance(data.get("docstatus"), str):
-		data["docstatus"] = json.loads(data["docstatus"])
+		data["docstatus"] = safe_json_loads(data["docstatus"])
 	if isinstance(data.get("save_user_settings"), str):
-		data["save_user_settings"] = json.loads(data["save_user_settings"])
+		data["save_user_settings"] = safe_json_loads(data["save_user_settings"])
 	else:
 		data["save_user_settings"] = True
 
+def safe_json_loads(data):
+	try:
+		return json.loads(data)
+	except ValueError:
+		return data
 
 def get_parenttype_and_fieldname(field, data):
 	if "." in field:
