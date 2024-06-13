@@ -8,6 +8,7 @@ from typing import Any
 from rq import get_current_job
 
 import frappe
+from frappe.database.utils import dangerously_reconnect_on_connection_abort
 from frappe.desk.form.load import get_attachments
 from frappe.desk.query_report import generate_report_result
 from frappe.model.document import Document
@@ -113,8 +114,8 @@ def generate_report(prepared_report):
 
 		instance.status = "Completed"
 	except Exception:
-		instance.status = "Error"
-		instance.error_message = frappe.get_traceback(with_context=True)
+		# we need to ensure that error gets stored
+		_save_error(instance, error=frappe.get_traceback(with_context=True))
 
 	instance.report_end_time = frappe.utils.now()
 	instance.save(ignore_permissions=True)
@@ -124,6 +125,14 @@ def generate_report(prepared_report):
 		{"report_name": instance.report_name, "name": instance.name},
 		user=frappe.session.user,
 	)
+
+
+@dangerously_reconnect_on_connection_abort
+def _save_error(instance, error):
+	instance.reload()
+	instance.status = "Error"
+	instance.error_message = error
+	instance.save(ignore_permissions=True)
 
 
 def update_job_id(prepared_report):

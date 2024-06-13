@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
 import frappe
@@ -32,7 +33,7 @@ from frappe.modules import get_doc_path, make_boilerplate
 from frappe.modules.import_file import get_file_path
 from frappe.permissions import ALL_USER_ROLE, AUTOMATIC_ROLES, SYSTEM_USER_ROLE
 from frappe.query_builder.functions import Concat
-from frappe.utils import cint, flt, is_a_property, random_string
+from frappe.utils import cint, flt, get_datetime, is_a_property, random_string
 from frappe.website.utils import clear_cache
 
 if TYPE_CHECKING:
@@ -869,8 +870,10 @@ class DocType(Document):
 	def make_amendable(self):
 		"""If is_submittable is set, add amended_from docfields."""
 		if self.is_submittable:
-			docfield_exists = [f for f in self.fields if f.fieldname == "amended_from"]
-			if not docfield_exists:
+			docfield = [f for f in self.fields if f.fieldname == "amended_from"]
+			if docfield:
+				docfield[0].options = self.name
+			else:
 				self.append(
 					"fields",
 					{
@@ -902,7 +905,7 @@ class DocType(Document):
 					no_copy=1,
 					print_hide=1,
 				)
-				create_custom_field(self.name, df)
+				create_custom_field(self.name, df, ignore_validate=True)
 
 	def validate_nestedset(self):
 		if not self.get("is_tree"):
@@ -1020,6 +1023,24 @@ class DocType(Document):
 			)
 
 		validate_route_conflict(self.doctype, self.name)
+
+	@frappe.whitelist()
+	def check_pending_migration(self) -> bool:
+		"""Checks if all migrations are applied on doctype."""
+		if self.is_new() or self.custom:
+			return
+
+		file = Path(get_file_path(frappe.scrub(self.module), self.doctype, self.name))
+		content = json.loads(file.read_text())
+		if content.get("modified") and get_datetime(self.modified) < get_datetime(content.get("modified")):
+			frappe.msgprint(
+				_(
+					"This doctype has pending migrations, run 'bench migrate' before modifying the doctype to avoid losing changes."
+				),
+				alert=True,
+				indicator="yellow",
+			)
+			return True
 
 
 def validate_series(dt, autoname=None, name=None):
@@ -1539,9 +1560,21 @@ def validate_fields(meta: Meta):
 					options_list.append(_option)
 			field.options = "\n".join(options_list)
 
-	def scrub_fetch_from(field):
-		if hasattr(field, "fetch_from") and field.fetch_from:
-			field.fetch_from = field.fetch_from.strip("\n").strip()
+	def validate_fetch_from(field):
+		if not field.get("fetch_from"):
+			return
+
+		field.fetch_from = field.fetch_from.strip()
+
+		if "." not in field.fetch_from:
+			return
+		source_field, _target_field = field.fetch_from.split(".", maxsplit=1)
+
+		if source_field == field.fieldname:
+			msg = _(
+				"{0} contains an invalid Fetch From expression, Fetch From can't be self-referential."
+			).format(_(field.label, context=field.parent))
+			frappe.throw(msg, title=_("Recursive Fetch From"))
 
 	def validate_data_field_type(docfield):
 		if docfield.get("is_virtual"):
@@ -1617,7 +1650,7 @@ def validate_fields(meta: Meta):
 		check_unique_and_text(meta.get("name"), d)
 		check_table_multiselect_option(d)
 		scrub_options_in_select(d)
-		scrub_fetch_from(d)
+		validate_fetch_from(d)
 		validate_data_field_type(d)
 
 		if not frappe.flags.in_migrate or in_ci:

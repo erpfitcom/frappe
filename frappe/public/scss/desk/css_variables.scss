@@ -25,7 +25,6 @@
 
 	// checkbox
 	--checkbox-right-margin: var(--margin-xs);
-	--checkbox-size: 14px;
 	--checkbox-focus-shadow: var(--focus-default);
 
 	// date-picker
@@ -51,4 +50,12 @@
 
 	// progress bar
 	--progress-bar-bg: var(--primary);
+
+	// list
+	--list-row-height: 40px;
+	--list-checkbox-padding: calc((var(--list-row-height) - var(--checkbox-size)) / 2);
+
+	@include media-breakpoint-down(md) {
+		--checkbox-size: 18px;
+	}
 }

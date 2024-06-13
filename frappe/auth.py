@@ -125,6 +125,8 @@ class LoginManager:
 				self.set_user_info()
 
 	def login(self):
+		self.run_trigger("before_login")
+
 		if frappe.get_system_settings("disable_user_pass_login"):
 			frappe.throw(_("Login with username and password is not allowed."), frappe.AuthenticationError)
 
@@ -340,6 +342,8 @@ class LoginManager:
 		if user == frappe.session.user:
 			delete_session(frappe.session.sid, user=user, reason="User Manually Logged Out")
 			self.clear_cookies()
+			if frappe.request:
+				self.login_as_guest()
 		else:
 			clear_sessions(user)
 
@@ -417,7 +421,18 @@ def clear_cookies():
 
 
 def validate_ip_address(user):
-	"""check if IP Address is valid"""
+	"""
+	Method to check if the user has IP restrictions enabled, and if so is the IP address they are
+	connecting from allowlisted.
+
+	Certain methods called from our socketio backend need direct access, and so the IP is not
+	checked for those
+	"""
+	if hasattr(frappe.local, "request") and frappe.local.request.path.startswith(
+		"/api/method/frappe.realtime."
+	):
+		return True
+
 	from frappe.core.doctype.user.user import get_restricted_ip_list
 
 	# Only fetch required fields - for perf

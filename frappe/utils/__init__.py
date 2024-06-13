@@ -42,6 +42,8 @@ EMAIL_MATCH_PATTERN = re.compile(
 	re.IGNORECASE,
 )
 
+UNSET = object()
+
 
 def get_fullname(user=None):
 	"""get the full name (first name + last name) of the user from User"""
@@ -229,7 +231,7 @@ def validate_url(
 	        valid_schemes: if provided checks the given URL's scheme against this
 	"""
 	url = urlparse(txt)
-	is_valid = bool(url.netloc)
+	is_valid = bool(url.netloc) or (txt and txt.startswith("/"))
 
 	# Handle scheme validation
 	if isinstance(valid_schemes, str):
@@ -480,7 +482,9 @@ def execute_in_shell(cmd, verbose=False, low_priority=False, check_exit_code=Fal
 			print(out)
 
 	if failed:
-		raise Exception("Command failed")
+		raise frappe.CommandFailedError(
+			"Command failed", out.decode(errors="replace"), err.decode(errors="replace")
+		)
 
 	return err, out
 

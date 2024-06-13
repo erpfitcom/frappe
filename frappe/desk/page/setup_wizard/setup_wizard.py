@@ -32,8 +32,8 @@ def get_setup_stages(args):  # nosemgrep
 	stages.append(
 		{
 			# post executing hooks
-			"status": "Wrapping up",
-			"fail_msg": "Failed to complete setup",
+			"status": _("Wrapping up"),
+			"fail_msg": _("Failed to complete setup"),
 			"tasks": [{"fn": run_post_setup_complete, "args": args, "fail_msg": "Failed to complete setup"}],
 		}
 	)
@@ -220,6 +220,7 @@ def create_or_update_user(args):  # nosemgrep
 			}
 		)
 		user.append_roles(*_get_default_roles())
+		user.append_roles("System Manager")
 		user.flags.no_welcome_mail = True
 		user.insert()
 

@@ -15,15 +15,6 @@ frappe.route_options = null;
 frappe.open_in_new_tab = false;
 frappe.route_hooks = {};
 
-$(window).on("hashchange", function (e) {
-	// v1 style routing, route is in hash
-	if (window.location.hash && !frappe.router.is_app_route(e.currentTarget.pathname)) {
-		let sub_path = frappe.router.get_sub_path(window.location.hash);
-		frappe.router.push_state(sub_path);
-		return false;
-	}
-});
-
 window.addEventListener("popstate", (e) => {
 	// forward-back button, just re-render based on current route
 	frappe.router.route();
@@ -56,11 +47,6 @@ $("body").on("click", "a", function (e) {
 		href === "#" // hash is home
 	) {
 		return;
-	}
-
-	if (href && href.startsWith("#")) {
-		// target startswith "#", this is a v1 style route, so remake it.
-		return override(target_element.hash);
 	}
 
 	if (frappe.router.is_app_route(target_element.pathname)) {
@@ -177,13 +163,12 @@ frappe.router = {
 		// /app/user/user-001 = ["Form", "User", "user-001"]
 		// /app/event/view/calendar/default = ["List", "Event", "Calendar", "Default"]
 
-		let private_workspace = route[1] && `${route[1]}-${frappe.user.name.toLowerCase()}`;
-
 		if (frappe.workspaces[route[0]]) {
 			// public workspace
 			route = ["Workspaces", frappe.workspaces[route[0]].title];
 		} else if (route[0] == "private") {
 			// private workspace
+			let private_workspace = route[1] && `${route[1]}-${frappe.user.name.toLowerCase()}`;
 			if (!frappe.workspaces[private_workspace] && localStorage.new_workspace) {
 				let new_workspace = JSON.parse(localStorage.new_workspace);
 				if (frappe.router.slug(new_workspace.title) === route[1]) {
@@ -232,11 +217,15 @@ frappe.router = {
 			} else if (frappe.model.is_single(doctype_route.doctype)) {
 				route = ["Form", doctype_route.doctype, doctype_route.doctype];
 			} else if (meta.default_view) {
-				route = [
-					"List",
-					doctype_route.doctype,
-					this.list_views_route[meta.default_view.toLowerCase()],
-				];
+				if (meta.default_view === "Tree") {
+					route = ["Tree", doctype_route.doctype];
+				} else {
+					route = [
+						"List",
+						doctype_route.doctype,
+						this.list_views_route[meta.default_view.toLowerCase()],
+					];
+				}
 			} else {
 				route = ["List", doctype_route.doctype, "List"];
 			}
@@ -474,26 +463,26 @@ frappe.router = {
 			return "/app/" + path_string;
 		}
 
-		// Workspace
+		// Resolution order
+		// 1. User's default workspace in user doctype
+		// 2. Private home
+		// 3. Public home
+		// 4. First workspace in list
 		let private_home = `home-${frappe.user.name.toLowerCase()}`;
-		let default_page = null;
-		if (frappe.boot.user.default_workspace) {
-			default_page = frappe.router.slug(frappe.boot.user.default_workspace.name);
-		} else if (frappe.workspaces[private_home]) {
-			default_page = private_home;
-		} else if (frappe.workspaces["home"]) {
-			default_page = "home";
-		} else {
-			// Fallback to first workspace
-			default_page = Object.keys(frappe.workspaces)[0];
-		}
+		let default_workspace = frappe.router.slug(frappe.boot.user.default_workspace?.name || "");
 
-		if (frappe.workspaces[default_page]?.public == false) {
-			default_page = "private/" + default_page;
-		}
+		let workspace =
+			frappe.workspaces[default_workspace] ||
+			frappe.workspaces[private_home] ||
+			frappe.workspaces["home"] ||
+			Object.values(frappe.workspaces)[0];
 
-		if (default_page) {
-			return "/app/" + default_page;
+		if (workspace) {
+			return (
+				"/app/" +
+				(workspace.public ? "" : "private/") +
+				frappe.router.slug(workspace.title)
+			);
 		}
 
 		return "/app";
@@ -520,13 +509,8 @@ frappe.router = {
 
 	get_sub_path_string(route) {
 		// return clean sub_path from hash or url
-		// supports both v1 and v2 routing
 		if (!route) {
 			route = window.location.pathname;
-			if (route.includes("app#")) {
-				// to support v1
-				route = window.location.hash;
-			}
 		}
 
 		return this.strip_prefix(route);

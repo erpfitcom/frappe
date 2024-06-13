@@ -15,6 +15,8 @@ EVENT_MAP = {
 	"on_submit": "After Submit",
 	"before_cancel": "Before Cancel",
 	"on_cancel": "After Cancel",
+	"before_discard": "Before Discard",
+	"on_discard": "After Discard",
 	"on_trash": "Before Delete",
 	"after_delete": "After Delete",
 	"before_update_after_submit": "Before Save (Submitted Document)",
@@ -41,7 +43,7 @@ def run_server_script_for_doc_event(doc, event):
 	if scripts:
 		# run all scripts for this doctype + event
 		for script_name in scripts:
-			frappe.get_doc("Server Script", script_name).execute_doc(doc)
+			frappe.get_cached_doc("Server Script", script_name).execute_doc(doc)
 
 
 def get_server_script_map():
