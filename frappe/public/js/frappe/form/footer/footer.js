@@ -49,36 +49,9 @@ frappe.ui.form.Footer = class FormFooter {
 								this.frm.timeline.get_comment_timeline_item(comment);
 							this.frm.comment_box.set_value("");
 							frappe.utils.play_sound("click");
-<<<<<<< HEAD
-							if (is_nested_comment) {
-								$(`.timeline-item[data-name="${reply_for_name}"]`).after(
-									`<div class="timeline-item" data-doctype="Comment" data-name="${
-										comment_item.name
-									}">
-										<div class="timeline-badge" title="SmallMessage">
-											<svg class="icon  icon-md" style="">
-												<use class="" href="#icon-small-message"></use>
-											</svg>
-										</div>
-										<div class="timeline-content frappe-card" data-name="comment-${
-											comment_item.name
-										}" style="margin-left: 60px;">
-											<div class="timeline-message-box">
-												${comment_item.content.html()}
-											</div>
-										</div>
-									</div>`
-								);
-							} else {
-								this.frm.timeline.add_timeline_item(comment_item);
-							}
-							this.frm.sidebar.refresh_comments_count &&
-								this.frm.sidebar.refresh_comments_count();
-=======
 							this.frm.timeline.add_timeline_item(comment_item);
 							this.frm.get_docinfo().comments.push(comment);
 							this.refresh_comments_count();
->>>>>>> upstream/develop
 						})
 						.finally(() => {
 							this.frm.comment_box.enable();
