@@ -1,8 +1,9 @@
 # Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 """
-	Utilities for using modules
+Utilities for using modules
 """
+
 import json
 import os
 from textwrap import dedent, indent
@@ -253,7 +254,7 @@ def load_doctype_module(doctype, module=None, prefix="", suffix=""):
 			doctype_python_modules[key] = frappe.get_module(module_name)
 		except ImportError as e:
 			msg = f"Module import failed for {doctype}, the DocType you're trying to open might be deleted."
-			msg += f"<br> Error: {e}"
+			msg += f"\nError: {e}"
 			raise ImportError(msg) from e
 
 	return doctype_python_modules[key]

@@ -32,7 +32,6 @@ from frappe.utils import (
 	sbool,
 	split_emails,
 )
-from frappe.utils.deprecations import deprecated
 from frappe.utils.verified_command import get_signed_params
 
 
@@ -171,18 +170,13 @@ class EmailQueue(Document):
 					method(self, self.sender, recipient.recipient, message)
 				elif not frappe.flags.in_test or frappe.flags.testing_email:
 					if ctx.email_account_doc.service == "Frappe Mail":
-						if self.reference_doctype == "Newsletter":
-							ctx.frappe_mail_client.send_newsletter(
-								sender=self.sender,
-								recipients=recipient.recipient,
-								message=message.decode("utf-8"),
-							)
-						else:
-							ctx.frappe_mail_client.send_raw(
-								sender=self.sender,
-								recipients=recipient.recipient,
-								message=message.decode("utf-8"),
-							)
+						is_newsletter = self.reference_doctype == "Newsletter"
+						ctx.frappe_mail_client.send_raw(
+							sender=self.sender,
+							recipients=recipient.recipient,
+							message=message,
+							is_newsletter=is_newsletter,
+						)
 					else:
 						ctx.smtp_server.session.sendmail(
 							from_addr=self.sender,
@@ -223,15 +217,9 @@ class EmailQueue(Document):
 		).run()
 
 
-@task(queue="short")
-@deprecated
-def send_mail(email_queue_name, smtp_server_instance: SMTPServer = None):
-	"""This is equivalent to EmailQueue.send.
+from frappe.deprecation_dumpster import send_mail as _send_mail
 
-	This provides a way to make sending mail as a background job.
-	"""
-	record = EmailQueue.find(email_queue_name)
-	record.send(smtp_server_instance=smtp_server_instance)
+send_mail = task(queue="short")(_send_mail)
 
 
 class SendMailContext:

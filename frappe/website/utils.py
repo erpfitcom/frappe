@@ -164,6 +164,8 @@ def get_home_page_via_hooks():
 
 
 def get_boot_data():
+	from frappe.locale import get_date_format, get_first_day_of_the_week, get_number_format, get_time_format
+
 	return {
 		"lang": frappe.local.lang or "en",
 		"apps_data": {
@@ -173,10 +175,11 @@ def get_boot_data():
 		},
 		"sysdefaults": {
 			"float_precision": cint(frappe.get_system_settings("float_precision")) or 3,
-			"date_format": frappe.get_system_settings("date_format") or "yyyy-mm-dd",
-			"time_format": frappe.get_system_settings("time_format") or "HH:mm:ss",
-			"first_day_of_the_week": frappe.get_system_settings("first_day_of_the_week") or "Sunday",
-			"number_format": frappe.get_system_settings("number_format") or "#,###.##",
+			"date_format": get_date_format(),
+			"time_format": get_time_format(),
+			"first_day_of_the_week": get_first_day_of_the_week(),
+			"number_format": get_number_format().string,
+			"currency": frappe.get_system_settings("currency"),
 		},
 		"time_zone": {
 			"system": get_system_timezone(),
@@ -523,6 +526,7 @@ def cache_html(func):
 				html = page_cache[frappe.local.lang]
 			if html:
 				frappe.local.response.from_cache = True
+				frappe.local.response.can_cache = True
 				return html
 		html = func(*args, **kwargs)
 		context = args[0].context
@@ -530,6 +534,7 @@ def cache_html(func):
 			page_cache = frappe.cache.hget("website_page", args[0].path) or {}
 			page_cache[frappe.local.lang] = html
 			frappe.cache.hset("website_page", args[0].path, page_cache)
+			frappe.local.response.can_cache = True
 
 		return html
 
@@ -541,14 +546,14 @@ def build_response(path, data, http_status_code, headers: dict | None = None):
 	response = Response()
 	response.data = set_content_type(response, data, path)
 	response.status_code = http_status_code
-	response.headers["X-Page-Name"] = cstr(path.encode("ascii", errors="xmlcharrefreplace"))
+	response.headers["X-Page-Name"] = cstr(cstr(path).encode("ascii", errors="xmlcharrefreplace"))
 	response.headers["X-From-Cache"] = frappe.local.response.from_cache or False
 
 	add_preload_for_bundled_assets(response)
 
 	if headers:
 		for key, val in headers.items():
-			response.headers[key] = cstr(val.encode("ascii", errors="xmlcharrefreplace"))
+			response.headers[key] = cstr(cstr(val).encode("ascii", errors="xmlcharrefreplace"))
 
 	return response
 

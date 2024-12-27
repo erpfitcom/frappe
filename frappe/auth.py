@@ -22,7 +22,6 @@ from frappe.twofactor import (
 	should_run_2fa,
 )
 from frappe.utils import cint, date_diff, datetime, get_datetime, today
-from frappe.utils.deprecations import deprecation_warning
 from frappe.utils.password import check_password, get_decrypted_password
 from frappe.website.utils import get_home_page
 
@@ -87,6 +86,7 @@ class HTTPRequest:
 				(frappe.get_request_header("X-Frappe-CSRF-Token") or frappe.form_dict.pop("csrf_token", None))
 				== saved_token
 			)
+			or self.is_allowed_referrer()
 		):
 			return
 
@@ -96,9 +96,24 @@ class HTTPRequest:
 	def set_lang(self):
 		frappe.local.lang = get_language()
 
+	def is_allowed_referrer(self):
+		referrer = frappe.get_request_header("Referer")
+		origin = frappe.get_request_header("Origin")
+
+		# Get the list of allowed referrers from cache or configuration
+		allowed_referrers = frappe.cache.get_value(
+			"allowed_referrers",
+			generator=lambda: frappe.conf.get("allowed_referrers", []),
+		)
+
+		# Check if the referrer or origin is in the allowed list
+		return (referrer and any(referrer.startswith(allowed) for allowed in allowed_referrers)) or (
+			origin and any(origin == allowed for allowed in allowed_referrers)
+		)
+
 
 class LoginManager:
-	__slots__ = ("user", "info", "full_name", "user_type", "resume")
+	__slots__ = ("full_name", "info", "resume", "user", "user_lang", "user_type")
 
 	def __init__(self):
 		self.user = None
@@ -161,13 +176,13 @@ class LoginManager:
 		self.info = frappe.get_cached_value(
 			"User", self.user, ["user_type", "first_name", "last_name", "user_image"], as_dict=1
 		)
-
+		self.user_lang = frappe.translate.get_user_lang()
 		self.user_type = self.info.user_type
 
 	def setup_boot_cache(self):
 		frappe.cache_manager.build_table_count_cache()
-		frappe.cache_manager.build_domain_restriced_doctype_cache()
-		frappe.cache_manager.build_domain_restriced_page_cache()
+		frappe.cache_manager.build_domain_restricted_doctype_cache()
+		frappe.cache_manager.build_domain_restricted_page_cache()
 
 	def set_user_info(self, resume=False):
 		# set sid again
@@ -198,6 +213,8 @@ class LoginManager:
 		frappe.local.cookie_manager.set_cookie("full_name", self.full_name)
 		frappe.local.cookie_manager.set_cookie("user_id", self.user)
 		frappe.local.cookie_manager.set_cookie("user_image", self.info.user_image or "")
+		# cache control: round trip the effectively delivered language
+		frappe.local.cookie_manager.set_cookie("user_lang", self.user_lang)
 
 	def clear_preferred_language(self):
 		frappe.local.cookie_manager.delete_cookie("preferred_language")
@@ -418,7 +435,9 @@ def get_logged_user():
 def clear_cookies():
 	if hasattr(frappe.local, "session"):
 		frappe.session.sid = ""
-	frappe.local.cookie_manager.delete_cookie(["full_name", "user_id", "sid", "user_image", "system_user"])
+	frappe.local.cookie_manager.delete_cookie(
+		["full_name", "user_id", "sid", "user_image", "user_lang", "system_user"]
+	)
 
 
 def validate_ip_address(user):
@@ -514,7 +533,9 @@ class LoginAttemptTracker:
 		:param lock_interval: Locking interval incase of maximum failed attempts
 		"""
 		if user_name:
-			deprecation_warning("`username` parameter is deprecated, use `key` instead.")
+			from frappe.deprecation_dumpster import deprecation_warning
+
+			deprecation_warning("unknown", "v17", "`username` parameter is deprecated, use `key` instead.")
 		self.key = key or user_name
 		self.lock_interval = datetime.timedelta(seconds=lock_interval)
 		self.max_failed_logins = max_consecutive_login_attempts

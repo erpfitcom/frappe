@@ -14,7 +14,6 @@ import random
 import time
 from typing import NoReturn
 
-import pytz
 import setproctitle
 from croniter import CroniterBadCronError
 from filelock import FileLock, Timeout
@@ -72,7 +71,7 @@ def sleep_duration(tick):
 	# This makes scheduler aligned with real clock,
 	# so event scheduled at 12:00 happen at 12:00 and not 12:00:35.
 	minutes = tick // 60
-	now = datetime.datetime.now(pytz.UTC)
+	now = datetime.datetime.now(datetime.timezone.utc)
 	left_minutes = minutes - now.minute % minutes
 	next_execution = now.replace(second=0) + datetime.timedelta(minutes=left_minutes)
 
@@ -101,7 +100,7 @@ def enqueue_events_for_site(site: str) -> None:
 
 	try:
 		_proctitle(f"scheduling events for {site}")
-		frappe.init(site=site)
+		frappe.init(site)
 		frappe.connect()
 		if is_scheduler_inactive():
 			return
